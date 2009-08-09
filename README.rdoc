@@ -1,0 +1,181 @@
+
+=dependent_select
+
+This package extends rails with some helpers that allow "selects that update dynamically 
+depending on other fields"
+
+Demo application can be found in http://github.com/splendeo/dependent_select
+
+==Quick example: Store with country and province
+  
+  On your layout:
+    <%= javascript_include_tag :defaults %>
+    <%= dependent_select_includes %>
+
+  On your new/edit views:
+
+    <% form_for :store do |f| %>
+      Country:<br/>
+      <% f.collection_select :country_id, @countries, :id, :name, :include_blanks => true %> <br />
+      Province:<br/>
+      <% f.collection_select :province_id, @provinces, :id, :name, :country_id, :include_blanks => true %> <br />
+      City:<br/>
+      <% f.collection_select :city_id, @cities, :id, :name, :province_id, :include_blanks => true %> <br />
+    <% end %>
+    
+  In order for this to work properly, the Store model must have methods for +country_id+ and +store_id+.
+  The best way I've found for implementing this is by using +delegate+. So the model would be:
+  
+    class Store < ActiveRecord::Base
+      belongs_to :city, :include => [{:province => :country}] #useful to preload these
+      delegate :country, :country_id, :country_id=, :to =>:city
+      delegate :province, :province_id, :province_id=, :to =>:city
+    end
+  
+  Notice that I've delegated the country to the city - so the city should probably have another +delegate+ line:
+    
+    class City < ActiveRecord::Base
+      belongs_to :province, :include => [:country] #again, useful but not needed
+      delegate :country, :country_id, :country_id=, :to =>:province
+    end
+    
+  Finally, the controller might look like this:
+  
+    class StoresController < ApplicationController
+      before_filter :fill_selects :only => [:new, :edit, :update, :create]
+      
+      {...} # Standard scaffold-generated methods
+      
+      protected
+      def fill_selects
+        @countries = Country.find(:all, :order => 'name ASC')
+        @provinces = Province.find(:all, :order => 'name ASC') # all provinces for all countries
+        @cities = City.find(:all, :order => 'name ASC') # all cities for all provinces
+      end
+    end
+    
+  This will generate a regular +collection_select+ for the country and a +dependent_collection_select+
+  for province. The later will be a regular +collection_select+ followed by a js +<script>+ tag that:
+    * Will create an array with all the provinces. (+var array=[province1, province2...];+)
+    * Will place a listeners on the +country_id+ +select+ in order to update the provinces select if
+      the countries select is modified
+    * Fill up the provinces select with appropiate values.
+  
+  *Note that this will not work if you haven't followed the installation procedure - see below*
+  
+  There's a more complex example at the end of this document.
+  
+==Installation
+
+===As a gem
+Copy this on config/environment.erb, inside the gems section
+    config.gem "splendeo-dependent_select", :lib => 'dependent_select', :source => "http://gems.github.com"
+Then execute
+    rake gems:install
+
+The first time you initialize your server after this (presumably with script/server) the necesary javascript files and css will be copied to the public/ directory.
+
+===As a plug-in
+I actually haven't tried this, sorry I don't know how to do it.
+
+==Re-installation
+===As a gem
+Several steps are needed:
+* It is recommended that you uninstall the gem before installing a new version.
+* You must remove this file: public/javascripts/dependent_select/dependent_select.js
+* And then install the new version
+
+In other words:
+    sudo gem uninstall splendeo-dependent_select
+    rm public/javascripts/dependent_select/dependent_select.js
+    rake gems:install
+
+===As a plug-in
+I haven't looked into that yet.
+
+==No AJAX? I can't sent the client all my cities!
+
+No AJAX for now, sorry. Just plain old javascript.
+
+However, it might interest you that you'll be generating this:
+
+  <script>
+    var whatever = [['opt1',1,1],['opt2',2,1],['opt3',3,1]...];
+  </script>
+
+Instead of this :
+
+  <option value='1'>opt1</option>
+  <option value='2'>opt2</option>
+  <option value='3'>opt3</option>
+
+In our tests, generating information for 8000 cities took arond 20k - the size of a small image.
+
+Make the test and then decide. It will not take you more than 10 minutes.
+
+==Complex example: Employee with home city and work city
+
+  On this case we have an employee model with 2 relationships with cities. So the employee model
+  might look like the one below. Notice that the +delegates+ get a bit more complicated.
+    
+    class Employee < ActiveRecord::Base
+    
+      belongs_to :home_city, :class_name => "City", :include => [{:province => :country}]
+      delegate :country, :country_id, :country_id=, :to =>:home_city,
+        :allow_nil => true, :prefix => :home
+      delegate :province, :province_id, :province_id=, :to =>:home_city,
+        :allow_nil => true, :prefix => :home
+  
+      belongs_to :work_city, :class_name => "City", :include => [{:province => :country}]
+      delegate :country, :country_id, :country_id=, :to =>:work_city,
+        :allow_nil => true, :prefix => :work
+      delegate :province, :province_id, :province_id=, :to =>:work_city,
+        :allow_nil => true, :prefix => :home
+    
+    end
+
+  On your layout:
+    <%= javascript_include_tag :defaults %>
+    <%= dependent_select_includes %>
+
+  On your new/edit views, the "filter" for provinces isn't +:country_id+ any more, but +:home_country_id+ or
+  +:work_country_id+. The same happens with the cities and the provinces. You have to tell the selects
+  where to find the right filter fields, using the +filter_field+ option.
+
+    <% form_for :employee do |f| %>
+      Home Country:<br/>
+      <% f.collection_select :home_country_id, @countries, :id, :name, :include_blanks => true %> <br />
+      Home Province:<br/>
+      <% f.dependent_collection_select :home_province_id, @provinces, :id, :name, :country_id, 
+        :filter_field => :home_country_id,
+        :include_blanks => true %> <br />
+      Home City:<br/>
+      <% f.dependent_collection_select :home_city_id, @cities, :id, :name, :city_id, 
+        :filter_field => :home_province_id,
+        :include_blanks => true %> <br />
+      Work Country:<br/>
+      <% f.collection_select :work_country_id, @countries, :id, :name, :include_blanks => true %> <br />
+      Work Province:<br/>
+      <% f.dependent_collection_select :work_province_id, @provinces, :id, :name, :country_id, 
+        :filter_field => :work_country_id,
+        :include_blanks => true %> <br />
+      Work City:<br/>
+      <% f.dependent_collection_select :work_city_id, @cities, :id, :name, :city_id, 
+        :filter_field => :work_province_id,
+        :include_blanks => true %> <br />
+    <% end %>
+    
+  On your controller:
+  
+    class EmployeesController < ApplicationController
+      before_filter :fill_selects :only => [:new, :edit, :update, :create]
+      
+      {...} # Standard scaffold-generated methods
+      
+      protected
+      def fill_selects
+        @countries = Country.find(:all, :order => 'name ASC')
+        @provinces = Province.find(:all, :order => 'name ASC') # all provinces for all countries
+        @cities = City.find(:all, :order => 'name ASC') # all cities for all provinces
+      end
+    end
