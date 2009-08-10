@@ -31,11 +31,11 @@ function update_dependent_select( dependent_id, observed_id, values_array, // ma
 
   // this fills the dependent select
   values_array.each (function (e) {
-    if (e[2]==filter) {                                       // only include options with the right filter field
-      var opt = new Element('option', {value: e[1]});         // create one <option> element...
-      opt.text= e[0];                                         // add text, 
-      if(collapse_spaces) { replace(/ /g, '\240'); }          // replacing spaces with &nbsp; if requested
-      if(opt.value == previous_value) { opt.selected=true; }  // mark it as selected if appropiate
+    if (e[2]==filter) {                                        // only include options with the right filter field
+      var opt = new Element('option', {value: e[1]});          // create one <option> element...
+      if(collapse_spaces) { opt.text= e[0];}                   // assign the text (spaces are automatically collapsed)
+      else { opt.text = e[0].replace(/ /g, '\240'); }          // replacing spaces with &nbsp; if requested
+      if(opt.value == previous_value) { opt.selected=true; }   // mark it as selected if appropiate
       dependent_field.options[dependent_field.options.length]=opt; // attach to depentent_select.. could not use "add"
     }
   });
