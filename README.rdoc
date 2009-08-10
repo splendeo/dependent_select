@@ -6,6 +6,8 @@ depending on other fields"
 
 Demo application can be found in http://github.com/splendeo/dependent_select
 
+Mailing list on http://groups.google.com/group/dependent_select/
+
 ==Quick example: Store with country and province
   
 On your layout:
