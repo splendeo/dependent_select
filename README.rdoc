@@ -20,9 +20,9 @@ On your new/edit views:
       Country:<br/>
       <% f.collection_select :country_id, @countries, :id, :name, :include_blanks => true %> <br />
       Province:<br/>
-      <% f.collection_select :province_id, @provinces, :id, :name, :country_id, :include_blanks => true %> <br />
+      <% f.dependent_collection_select :province_id, @provinces, :id, :name, :country_id, :include_blanks => true %> <br />
       City:<br/>
-      <% f.collection_select :city_id, @cities, :id, :name, :province_id, :include_blanks => true %> <br />
+      <% f.dependent_collection_select :city_id, @cities, :id, :name, :province_id, :include_blanks => true %> <br />
     <% end %>
     
 In order for this to work properly, the Store model must have methods for +country_id+ and +store_id+.
