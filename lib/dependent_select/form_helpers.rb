@@ -1,6 +1,8 @@
 # Various helpers available for use in your view
 module DependentSelect::FormHelpers
 
+  @used_array_names = {}
+
   # Similar to collection_select form helper, but adds a "filter_method" parameter
   # the generated code includes a javascript observer that modifies the select
   # using the value of a form method.
@@ -29,7 +31,7 @@ module DependentSelect::FormHelpers
   #   +html_options+:: (Optional)The same html options as +collection_select+.
   #                    They are appended to the html +select+ as attributes.
   # == Options
-  # In addition to all options for +collection_select+, two new options are available
+  # In addition to all options for +collection_select+, several new options are available
   #
   # === :collapse_spaces
   # By default, blank spaces are collapsed on browsers when printing the select option texts
@@ -43,6 +45,34 @@ module DependentSelect::FormHelpers
   # This is accomplised on the javascript function using code similar to the following
   #
   #    option_text.replace(/ /g, "\240"); // "\240" is the octal representation of charcode 160 (nbsp)
+  #
+  # On the following example, a sale occurs on a store that belongs to a company. The store model
+  # has a method called +name_for_selects+ that prints a two-column text - the first column has
+  # the company name on it, while the second has the store address. They are separated by a '|'
+  # character, and padded with spaces when necesary (company name has 10 chars or less)
+  #
+  #    class Store < ActiveRecord::Model
+  #      belongs_to :company
+  #      has_many :sales
+  #      validates_presence_of :address
+  #
+  #      def name_for_selects
+  #        "#{company.name.ljust(10)} | #{address}"
+  #      end
+  #    end
+  #
+  # Now on the edit/new sale view, we will need to use the :collapse_spaces option like this:
+  #
+  #    <%= dependent_collection_select(:sale, :store_id, @stores, :id, :name_for_selects, :company_id,
+  #          {:collapse_spaces => true}, {:class => 'monospaced'})
+  #     %>
+  #
+  # It is recommended that you use this function in conjunction with a monospaced css style. The following
+  # rule should be available, for example on application.css:
+  #
+  #    .monospaced {
+  #      font-family: monospaced;
+  #    }
   #
   # === :filter_field
   # The javascript employed for updating the dependent select needs a field for getting
@@ -65,16 +95,47 @@ module DependentSelect::FormHelpers
   # Notice that the chain 'sale_' is still appended to the field name. It is possible to override this
   # by using the +:complete_filter_field+ option istead of this one.
   #
+  # The most common use of this property will be for dealing with multiple relationships between the same
+  # models. See the complex example below for details.
+  #
   # === :complete_filter_field
   # Works the same way as :filter_field, except that it uses its value directly, instead
   # of appending the :object_name at all. For example:
   #
-  #    <%= dependent_collection_select (:sale, :province_id, @provinces, :id, :name, 
+  #    <%= dependent_collection_select(:sale, :province_id, @provinces, :id, :name, 
   #          :country_id, {:complete_filter_field => :the_province})
   #     %>
   #
   # This will make the javascript to look for a field called +'the_province'+ on the
   # page, and use its value for filtering.
+  #
+  # === :array_name
+  # dependent_select generates a javascript array with all the options available to the dependent select.
+  # By default, the name of that variable is automatically generated using the following formula:
+  #
+  #    js_array_name = "ds_#{object_name}_#{method}_array"
+  #
+  # This can be overriden by using the js_array_name option (its value will be used instead of the previous)
+  #
+  # This is useful because, by default, dependant_select forms will keep track of generated arrays, and *will not*
+  # generate the same array twice. This is very useful for situations in which lots of dependent_selects have
+  # to be generated, with the same data. For example, a flight has a destination and origin city:
+  #
+  #    <%= dependent_collection_select( :flight, :origin_city_id, @cities, :id, :name, :province_id,
+  #          { :filter_field => :origin_province_id, js_array_name => 'cities_array' }
+  #     %>
+  #
+  #    <%= dependent_collection_select( :flight, :destination_city_id, @cities, :id, :name, :province_id,
+  #          { :filter_field => :destination_province_id, js_array_name => 'cities_array' }
+  #     %>
+  #
+  # This example will generate the first javascript array and call it cities_array. Then the second
+  # call to +dependent_select+ is done, the form will already know that the javascript for this script
+  # is generated, so it will not generate an array.
+  #
+  # The +:array_name+ option can also be used in the opposite way: to force the generation of an array.
+  # This should happen very rarely - two dependent selects generate the same object name and method but are not
+  # supposed to use the same list of values.
   #
   # == Examples
   #
@@ -182,25 +243,28 @@ module DependentSelect::FormHelpers
   #    </p><p>
   #      Import Province:
   #      <%= dependent_collection_select :store, :import_province_id, @provinces, :id, :name,
-  #            :country_id, :filter_field => :import_country_id
+  #            :country_id, :filter_field => :import_country_id, :array_name => 'provinces_array'
   #       %>
   #    </p><p>
   #      Import City:
   #      <%= dependent_collection_select :store, :import_city_id, @cities, :id, :name,
-  #            :province_id, :filter_field => :import_province_id %>
+  #            :province_id, :filter_field => :import_province_id, :array_name => 'cities_array'
+  #       %>
   #    </p><p>
   #      Export Country:
   #      <%= collection_collection_select :store, :export_country_id, @countries, :id, :name %>
   #    </p><p>
   #      Export Province:
   #      <%= dependent_collection_select :store, :export_province_id, @provinces, :id, :name,
-  #            :country_id, :filter_field => :export_country_id
+  #            :country_id, :filter_field => :export_country_id, :array_name => 'provinces_array'
   #       %>
   #    </p><p>
   #      Export City:
   #      <%= dependent_select :store, :export_city_id, @cities, :id, :name,
-  #            :province_id, :filter_field => :export_province_id %>
+  #            :province_id, :filter_field => :export_province_id, :array_name => 'cities_array'
+  #       %>
   #    </p>
+  # Notice the use of +:array_name+. This is optional, but greatly reduces the amount of js code generated
   #
   def dependent_collection_select(object_name, method, collection, value_method, 
     text_method, filter_method, options = {}, html_options = {}
@@ -285,7 +349,7 @@ module DependentSelect::FormHelpers
     # extracts any options passed into calendar date select, appropriating them to either the Javascript call or the html tag.
     def dependent_select_process_options(options)
       options, extra_options = DependentSelect.default_options.merge(options), {}
-      for key in [:collapse_spaces, :filter_field, :complete_filter_field]
+      for key in [:collapse_spaces, :filter_field, :complete_filter_field, :array_name]
         extra_options[key] = options.delete(key) if options.has_key?(key)
       end
        
@@ -304,8 +368,14 @@ module DependentSelect::FormHelpers
       filter_method, options, extra_options)
 
       # the js variable that will hold the array with option values, texts and filters
-      js_array_name = "ds_#{object_name}_#{method}_array"
-
+      js_array_name = extra_options[:array_name] || "ds_#{object_name}_#{method}_array"
+      
+      js_array_code = ""
+      
+      if(@used_array_names[js_array_name].nil?)
+        js_array_code += "#{js_array_name} = #{choices_with_filter.to_json};\n"
+      end
+      
       dependent_id = dependent_select_calculate_id(object_name, method)
       observed_id = dependent_select_calculate_observed_field_id(object_name, filter_method, extra_options)
       initial_value = dependent_select_initial_value(object, method)
@@ -316,7 +386,7 @@ module DependentSelect::FormHelpers
         "function(e) { update_dependent_select( '#{dependent_id}', '#{observed_id}', #{js_array_name}, " +
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, false); }"
 
-      javascript_tag( "#{js_array_name} = #{choices_with_filter.to_json};\n" +
+      javascript_tag(js_array_code +
         "$('#{observed_id}').observe ('change', #{js_callback});\n" +
         "$('#{observed_id}').observe ('DependentSelectFormBuilder:change', #{js_callback}); \n" +
         "update_dependent_select( '#{dependent_id}', '#{observed_id}', #{js_array_name}, " +
