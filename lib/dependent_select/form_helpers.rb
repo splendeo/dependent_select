@@ -1,8 +1,6 @@
 # Various helpers available for use in your view
 module DependentSelect::FormHelpers
 
-  @used_array_names = {}
-
   # Similar to collection_select form helper, but adds a "filter_method" parameter
   # the generated code includes a javascript observer that modifies the select
   # using the value of a form method.
@@ -346,6 +344,11 @@ module DependentSelect::FormHelpers
   end
 
   private
+    #holds the names of the arrays already generated, so repetitions can be avoided.
+    def dependend_select_array_names
+      @dependend_select_array_names ||= {}
+    end
+  
     # extracts any options passed into calendar date select, appropriating them to either the Javascript call or the html tag.
     def dependent_select_process_options(options)
       options, extra_options = DependentSelect.default_options.merge(options), {}
@@ -372,8 +375,9 @@ module DependentSelect::FormHelpers
       
       js_array_code = ""
       
-      if(@used_array_names[js_array_name].nil?)
-        js_array_code += "#{js_array_name} = #{choices_with_filter.to_json};\n"
+      if(dependend_select_array_names[js_array_name].nil?)
+        dependend_select_array_names[js_array_name] = true;
+        js_array_code += "#{js_array_name} = #{choices_with_filter.to_json};\n"    
       end
       
       dependent_id = dependent_select_calculate_id(object_name, method)
