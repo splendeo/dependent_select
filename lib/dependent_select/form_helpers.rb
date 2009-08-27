@@ -418,14 +418,14 @@ module DependentSelect::FormHelpers
     #    it returns the value of that item
     #  * If +extra_options+ has an item with key +:filter_field+,
     #    it uses its value instead of +method+
-    def dependent_select_calculate_observed_field_id(object_name, filter_method, extra_options)
+    def dependent_select_calculate_observed_field_id(object_name, method, extra_options)
       if extra_options.has_key? :complete_filter_field
         return extra_options[:complete_filter_field]
       elsif extra_options.has_key? :filter_field
         method = extra_options[:filter_field]
       end
 
-      dependent_select_calculate_id(object_name, filter_method)
+      dependent_select_calculate_id(object_name, method)
     end
     
     # calculates one id. Usually it just concatenates object_method, ie 'employee_city_id'
