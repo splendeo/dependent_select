@@ -272,7 +272,7 @@ module DependentSelect::FormHelpers
     initial_collection = dependent_select_initial_collection(object,
       method, collection, value_method)
 
-    tag = collection_select(object_name, method, initial_collection, value_method, 
+    tag = collection_select(object, method, initial_collection, value_method, 
       text_method, options, html_options)
 
     script = dependent_select_js_for_collection(object_name, object, method, 
@@ -335,7 +335,7 @@ module DependentSelect::FormHelpers
 
     initial_choices = dependent_select_initial_choices(object, method, choices_with_filter)
     
-    tag = select(object_name, method, initial_choices, options, html_options)
+    tag = select(object, method, initial_choices, options, html_options)
 
     script = dependent_select_js(object_name, method, choices_with_filter,
       filter_method, options, extra_options)
