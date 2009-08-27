@@ -39,7 +39,7 @@ module DependentSelect::FormHelpers
   #    </select>
   # Most browsers will "collapse" the spaces, and present something like this instead:
   #       "This option should have lots of spaces on its text"
-  # Setting collapse_blanks to false will replace the blanks with the &nbsp; character.
+  # Setting collapse_spaces to false will replace the blanks with the &nbsp; character.
   # This is accomplised on the javascript function using code similar to the following
   #
   #    option_text.replace(/ /g, "\240"); // "\240" is the octal representation of charcode 160 (nbsp)
@@ -267,12 +267,12 @@ module DependentSelect::FormHelpers
   def dependent_collection_select(object_name, method, collection, value_method, 
     text_method, filter_method, options = {}, html_options = {}
   )
-    object, options, extra_options = dependent_select_process_options(options)
+    object, options, extra_options = dependent_select_process_options(object_name, options)
 
     initial_collection = dependent_select_initial_collection(object,
       method, collection, value_method)
-
-    tag = collection_select(object, method, initial_collection, value_method, 
+    
+    tag = collection_select(object_name, method, initial_collection, value_method, 
       text_method, options, html_options)
 
     script = dependent_select_js_for_collection(object_name, object, method, 
@@ -331,11 +331,11 @@ module DependentSelect::FormHelpers
   def dependent_select(object_name, method, choices_with_filter, filter_method,
     options = {}, html_options = {})
 
-    object, options, extra_options = dependent_select_process_options(options)
+    object, options, extra_options = dependent_select_process_options(object_name, options)
 
     initial_choices = dependent_select_initial_choices(object, method, choices_with_filter)
     
-    tag = select(object, method, initial_choices, options, html_options)
+    tag = select(object_name, method, initial_choices, options, html_options)
 
     script = dependent_select_js(object_name, method, choices_with_filter,
       filter_method, options, extra_options)
@@ -350,14 +350,16 @@ module DependentSelect::FormHelpers
     end
   
     # extracts any options passed into calendar date select, appropriating them to either the Javascript call or the html tag.
-    def dependent_select_process_options(options)
+    def dependent_select_process_options(object_name, options)
       options, extra_options = DependentSelect.default_options.merge(options), {}
       for key in [:collapse_spaces, :filter_field, :complete_filter_field, :array_name]
         extra_options[key] = options.delete(key) if options.has_key?(key)
       end
        
-      object = options.delete(:object) || instance_variable_get("@#{object}")
-        
+      object = options.delete(:object) || instance_variable_get("@#{object_name}")
+      
+      options[:object]=object
+
       [object, options, extra_options]
     end
 

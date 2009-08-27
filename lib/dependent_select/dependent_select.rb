@@ -5,13 +5,13 @@ module DependentSelect
   # Example:
   #   # At the bottom of config/environment.rb:
   #   DependentSelect.default_options.update(
-  #     :collapse_blanks => false
+  #     :collapse_spaces => false
   #   )
   def self.default_options
-    @default_options ||= { :collapse_blanks => true }
+    @default_options ||= { :collapse_spaces => true }
   end
 
-  # By default, blank spaces are collapsed on browsers when printing the select option texts
+  # By default, spaces are collapsed on browsers when printing the select option texts
   # For example:
   #    <select>
   #       <option>This  option    should   have      lots of       spaces   on its text</option>
@@ -21,8 +21,8 @@ module DependentSelect
   # Setting collapse_blanks to false will replace the blanks with the &nbsp; character, using
   # javascript
   #    option_text.replace(/ /g, "\240"); // "\240" is the octal representation of charcode 160 (nbsp)
-  def self.collapse_blanks=(value)
-    default_options[:collapse_blanks] = value
+  def self.collapse_spaces=(value)
+    default_options[:collapse_spaces] = value
   end
 
 end
