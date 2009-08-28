@@ -111,7 +111,7 @@ module DependentSelect::FormHelpers
   # dependent_select generates a javascript array with all the options available to the dependent select.
   # By default, the name of that variable is automatically generated using the following formula:
   #
-  #    js_array_name = "ds_#{object_name}_#{method}_array"
+  #    js_array_name = "ds_#{dependent_field_id}_array"
   #
   # This can be overriden by using the js_array_name option (its value will be used instead of the previous)
   #
@@ -272,11 +272,13 @@ module DependentSelect::FormHelpers
     initial_collection = dependent_select_initial_collection(object,
       method, collection, value_method)
     
-    tag = collection_select(object_name, method, initial_collection, value_method, 
+    tag, dependent_field_id = dependent_collection_select_build_tag(
+      object_name, object, method, initial_collection, value_method, 
       text_method, options, html_options)
 
     script = dependent_select_js_for_collection(object_name, object, method, 
-      collection, value_method, text_method, filter_method, options, extra_options)
+      collection, value_method, text_method, filter_method, options, html_options,
+      extra_options, dependent_field_id)
       
     return "#{tag}\n#{script}"
   end
@@ -335,10 +337,12 @@ module DependentSelect::FormHelpers
 
     initial_choices = dependent_select_initial_choices(object, method, choices_with_filter)
     
-    tag = select(object_name, method, initial_choices, options, html_options)
+    tag, dependent_field_id = dependent_select_build_tag(
+      object_name, object, method, initial_collection, value_method, 
+      text_method, options, html_options)
 
     script = dependent_select_js(object_name, method, choices_with_filter,
-      filter_method, options, extra_options)
+      filter_method, options, html_options, extra_options)
     
     return "#{tag}\n#{script}"
   end
@@ -370,10 +374,10 @@ module DependentSelect::FormHelpers
     #  * An extra observer for custon events. These events are raised by the dependent_select itself.
     #  * An first call to update_dependent_select, that sets up the initial stuff
     def dependent_select_js(object_name, object, method, choices_with_filter, 
-      filter_method, options, extra_options)
+      filter_method, options, html_options, extra_options, dependent_field_id)
 
       # the js variable that will hold the array with option values, texts and filters
-      js_array_name = extra_options[:array_name] || "ds_#{object_name}_#{method}_array"
+      js_array_name = extra_options[:array_name] || "ds_#{dependent_field_id}_array"
       
       js_array_code = ""
       
@@ -382,27 +386,27 @@ module DependentSelect::FormHelpers
         js_array_code += "#{js_array_name} = #{choices_with_filter.to_json};\n"    
       end
       
-      dependent_id = dependent_select_calculate_id(object_name, method)
-      observed_id = dependent_select_calculate_observed_field_id(object_name, filter_method, extra_options)
+      observed_field_id = dependent_select_calculate_observed_field_id(object_name, object,
+        filter_method, html_options, extra_options)
       initial_value = dependent_select_initial_value(object, method)
       include_blank = options[:include_blank] || false
       collapse_spaces = extra_options[:collapse_spaces] || false
 
       js_callback =
-        "function(e) { update_dependent_select( '#{dependent_id}', '#{observed_id}', #{js_array_name}, " +
+        "function(e) { update_dependent_select( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, false); }"
 
       javascript_tag(js_array_code +
-        "$('#{observed_id}').observe ('change', #{js_callback});\n" +
-        "$('#{observed_id}').observe ('DependentSelectFormBuilder:change', #{js_callback}); \n" +
-        "update_dependent_select( '#{dependent_id}', '#{observed_id}', #{js_array_name}, " +
+        "$('#{observed_field_id}').observe ('change', #{js_callback});\n" +
+        "$('#{observed_field_id}').observe ('DependentSelectFormBuilder:change', #{js_callback}); \n" +
+        "update_dependent_select( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, true);"
       )
     end
     
     # generates the js script for a dependent_collection_select. See +dependent_select_js+
     def dependent_select_js_for_collection(object_name, object, method, collection, 
-      value_method, text_method, filter_method, options, extra_options)
+      value_method, text_method, filter_method, options, html_options, extra_options, dependent_field_id)
 
       # the array that, converted to javascript, will be assigned values_var variable,
       # so it can be used for updating the select
@@ -411,7 +415,29 @@ module DependentSelect::FormHelpers
       end
 
       dependent_select_js(object_name, object, method, choices_with_filter, 
-        filter_method, options, extra_options)
+        filter_method, options, html_options, extra_options, dependent_field_id)
+    end
+    
+    # returns a collection_select html string and the id of the generated field
+    def dependent_collection_select_build_tag(object_name, object, method, collection, value_method, 
+      text_method, options, html_options)
+      dependent_field_id, it = dependent_select_calculate_field_id_and_it(object_name, 
+        object, method, html_options)
+      
+      tag = it.to_collection_select_tag(collection, value_method, text_method, options, html_options)
+      
+      return [tag, dependent_field_id]
+    end
+    
+    # returns a select html string and the id of the generated field
+    def dependent_select_build_tag(object_name, object, method, choices, options = {}, html_options = {})
+      
+      dependent_field_id, it = dependent_select_calculate_field_id_and_it(object_name, 
+        object, method, html_options)
+      
+      tag = it.to_select_tag(choices, options, html_options)
+      
+      return [tag, dependent_field_id]
     end
 
     # Calculates the dom id of the observed field, usually concatenating object_name and filt. meth.
@@ -420,24 +446,31 @@ module DependentSelect::FormHelpers
     #    it returns the value of that item
     #  * If +extra_options+ has an item with key +:filter_field+,
     #    it uses its value instead of +method+
-    def dependent_select_calculate_observed_field_id(object_name, method, extra_options)
-      if extra_options.has_key? :complete_filter_field
-        return extra_options[:complete_filter_field]
-      elsif extra_options.has_key? :filter_field
-        method = extra_options[:filter_field]
-      end
+    def dependent_select_calculate_observed_field_id(object_name, object, method, 
+      html_options, extra_options)
+      
+      return extra_options[:complete_filter_field] if extra_options.has_key? :complete_filter_field
+      method = extra_options[:filter_field] if extra_options.has_key? :filter_field
 
-      dependent_select_calculate_id(object_name, method)
+      return dependent_select_calculate_field_id(object_name, object, method, html_options)
     end
     
-    # calculates one id. Usually it just concatenates object_method, ie 'employee_city_id'
-    def dependent_select_calculate_id(object_name, method)
-      sanitized_object_name = object_name.to_s.gsub(/\]\[|[^-a-zA-Z0-9:.]/, "_").sub(/_$/, "")
-      sanitized_method_name = method.to_s.sub(/\?$/,"")
-
-      return "#{sanitized_object_name}_#{sanitized_method_name}"
+    # calculates the id of a generated field
+    def dependent_select_calculate_field_id(object_name, object, method, html_options)
+      field_id, it = dependent_select_calculate_field_id_and_it(object_name, object, method, html_options)
+      return field_id
     end
-
+    
+    # ugly hack used to obtain the generated id from a form_helper
+    # uses the method ActionView::Helpers::InstanceTag.add_default_name_and_id,
+    # ...which is a private method of an internal class of rails. filty.
+    def dependent_select_calculate_field_id_and_it(object_name, object, method, html_options)
+      it = ActionView::Helpers::InstanceTag.new(object_name, method, self, object)
+      html_options = html_options.stringify_keys
+      it.send :add_default_name_and_id, html_options #use send since add_default... is private
+      return [ html_options['id'], it]
+    end
+    
     # Returns the collection that will be used when the dependent_select is first displayed
     # (before even the first update_dependent_select call is done)
     # The collection is obained by taking all the elements in collection whose value
