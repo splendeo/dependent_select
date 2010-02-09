@@ -71,7 +71,7 @@ There's a more complex example at the end of this document.
 
 ===As a gem
 Copy this on config/environment.erb, inside the gems section
-    config.gem "splendeo-dependent_select", :lib => 'dependent_select', :source => "http://gems.github.com"
+    config.gem "dependent_select"
 Then execute
     rake gems:install
 
@@ -88,7 +88,7 @@ Several steps are needed:
 * And then install the new version
 
 In other words:
-    sudo gem uninstall splendeo-dependent_select
+    sudo gem uninstall dependent_select
     rm public/javascripts/dependent_select/dependent_select.js
     rake gems:install
 
