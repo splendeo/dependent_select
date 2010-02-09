@@ -8,7 +8,7 @@ module DependentSelect
   #     :collapse_spaces => false
   #   )
   def self.default_options
-    @default_options ||= { :collapse_spaces => true }
+    @default_options ||= { :collapse_spaces => true, :use_jquery => false }
   end
 
   # By default, spaces are collapsed on browsers when printing the select option texts
@@ -24,5 +24,18 @@ module DependentSelect
   def self.collapse_spaces=(value)
     default_options[:collapse_spaces] = value
   end
-
+  
+  def self.collapse_spaces?
+    default_options[:collapse_spaces]
+  end
+  
+  # By default, dependent_select will use Prototype. If you need to use jquery, you can do so by doing
+  #    DependentSelect.use_jquery = true
+  def self.use_jquery=(value)
+    default_options[:use_jquery] = value
+  end
+  
+  def self.use_jquery?
+    default_options[:use_jquery]
+  end
 end

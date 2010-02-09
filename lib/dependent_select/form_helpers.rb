@@ -390,18 +390,31 @@ module DependentSelect::FormHelpers
         filter_method, html_options, extra_options)
       initial_value = dependent_select_initial_value(object, method)
       include_blank = options[:include_blank] || false
-      collapse_spaces = extra_options[:collapse_spaces] || false
-
+      collapse_spaces = extra_options[:collapse_spaces] || DependentSelect.collapse_spaces?
+      
+      
+      if(DependentSelect.use_jquery?)
+        js_function = 'update_depentent_select_jquery'
+      else
+        js_function = 'update_dependent_select'
+      end
+      
       js_callback =
-        "function(e) { update_dependent_select( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
+        "function(e) { #{js_function}( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, false); }"
+      
+      if(DependentSelect.use_jquery?)
+        observers = "$('##{observed_field_id}').bind('change', #{js_callback});\n"
+      else
+        observers = "$('#{observed_field_id}').observe('change', #{js_callback});\n" +
+          "$('#{observed_field_id}').observe('DependentSelectFormBuilder:change', #{js_callback}); \n"
+      end
 
-      javascript_tag(js_array_code +
-        "$('#{observed_field_id}').observe ('change', #{js_callback});\n" +
-        "$('#{observed_field_id}').observe ('DependentSelectFormBuilder:change', #{js_callback}); \n" +
-        "update_dependent_select( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
-        "'#{initial_value}', #{include_blank}, #{collapse_spaces}, true);"
-      )
+      initial_call =
+        "#{js_function}( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
+        "'#{initial_value}', #{include_blank}, #{collapse_spaces}, true);\n"
+
+      javascript_tag(js_array_code + observers + initial_call)
     end
     
     # generates the js script for a dependent_collection_select. See +dependent_select_js+
