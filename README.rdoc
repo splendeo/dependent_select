@@ -59,8 +59,7 @@ Finally, the controller might look like this:
 This will generate a regular +collection_select+ for the country and a +dependent_collection_select+
 for province. The later will be a regular +collection_select+ followed by a js +<script>+ tag that:
 * Will create an array with all the provinces. (+var array=[province1, province2...];+)
-* Will place a listeners on the +country_id+ +select+ in order to update the provinces select if
-    the countries select is modified
+* Will place a listeners on the +country_id+ +select+ in order to update the provinces select if the countries select is modified
 * Fill up the provinces select with appropiate values.
 
 *Note that this will not work if you haven't followed the installation procedure - see below*
