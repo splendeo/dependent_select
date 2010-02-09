@@ -404,7 +404,7 @@ module DependentSelect::FormHelpers
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, false); }"
       
       if(DependentSelect.use_jquery?)
-        observers = "$('##{observed_field_id}').bind('change', #{js_callback});\n"
+        observers = "$('##{observed_field_id}').change(#{js_callback});\n"
       else
         observers = "$('#{observed_field_id}').observe('change', #{js_callback});\n" +
           "$('#{observed_field_id}').observe('DependentSelectFormBuilder:change', #{js_callback}); \n"
@@ -414,7 +414,7 @@ module DependentSelect::FormHelpers
         "#{js_function}( '#{dependent_field_id}', '#{observed_field_id}', #{js_array_name}, " +
         "'#{initial_value}', #{include_blank}, #{collapse_spaces}, true);\n"
 
-      javascript_tag(js_array_code + observers + initial_call)
+      return javascript_tag(js_array_code + observers + initial_call)
     end
     
     # generates the js script for a dependent_collection_select. See +dependent_select_js+
